@@ -5,16 +5,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System deps for building wheels; keep minimal
+# System deps for building wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml /app/pyproject.toml
-
+# Install deps from requirements.txt (simpler, avoids pyproject build-backend issues)
+COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir .
+    && pip install --no-cache-dir -r requirements.txt
 
+# Copy app source
 COPY . /app
 
 EXPOSE 8000
