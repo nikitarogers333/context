@@ -1,5 +1,5 @@
 [project]
-name = "atlas-memory"
+name = "context"
 version = "0.1.0"
 description = "Layered memory system for Atlas AI — chat archival, vector search, knowledge extraction, and cross-project context retrieval"
 requires-python = ">=3.11"
