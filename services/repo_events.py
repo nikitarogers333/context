@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_session
 from models.repo_event import RepoEvent
-from services.auth import verify_api_key
+from services.auth import require_api_key
 from services.schemas import RepoEventCreate, RepoEventOut, RepoEventQuery
 
-router = APIRouter(prefix="/repo-events", tags=["repo-events"], dependencies=[Depends(verify_api_key)])
+router = APIRouter(prefix="/repo-events", tags=["repo-events"], dependencies=[Depends(require_api_key)])
 
 
 @router.post("", response_model=RepoEventOut, status_code=201)

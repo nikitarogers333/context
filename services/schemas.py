@@ -63,14 +63,17 @@ class InsightCreate(BaseModel):
 
 
 class InsightOut(BaseModel):
-    id: uuid.UUID
+    id: str
     type: str
     project: str | None
     title: str
     content: str
-    tags: str | None
+    tags: list[str] | None
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class InsightSearch(BaseModel):
@@ -97,7 +100,7 @@ class RepoEventCreate(BaseModel):
 
 
 class RepoEventOut(BaseModel):
-    id: uuid.UUID
+    id: str
     event_type: str
     repo: str
     project: str | None
@@ -108,6 +111,9 @@ class RepoEventOut(BaseModel):
     url: str | None
     event_at: datetime
     created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class RepoEventQuery(BaseModel):
@@ -133,7 +139,7 @@ class TaskOutcomeCreate(BaseModel):
 
 
 class TaskOutcomeOut(BaseModel):
-    id: uuid.UUID
+    id: str
     project: str | None
     result: str
     task_description: str
@@ -141,8 +147,11 @@ class TaskOutcomeOut(BaseModel):
     fix: str | None
     recommendation: str | None
     linked_commit: str | None
-    tags: str | None
+    tags: list[str] | None
     created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class TaskOutcomeQuery(BaseModel):

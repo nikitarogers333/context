@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_session
 from models.insight import Insight
-from services.auth import verify_api_key
+from services.auth import require_api_key
 from services.schemas import InsightCreate, InsightOut, InsightSearch
 
-router = APIRouter(prefix="/insights", tags=["insights"], dependencies=[Depends(verify_api_key)])
+router = APIRouter(prefix="/insights", tags=["insights"], dependencies=[Depends(require_api_key)])
 
 
 @router.post("", response_model=InsightOut, status_code=201)

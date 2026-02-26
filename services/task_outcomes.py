@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_session
 from models.task_outcome import TaskOutcome
-from services.auth import verify_api_key
+from services.auth import require_api_key
 from services.schemas import TaskOutcomeCreate, TaskOutcomeOut, TaskOutcomeQuery
 
-router = APIRouter(prefix="/task-outcomes", tags=["task-outcomes"], dependencies=[Depends(verify_api_key)])
+router = APIRouter(prefix="/task-outcomes", tags=["task-outcomes"], dependencies=[Depends(require_api_key)])
 
 
 @router.post("", response_model=TaskOutcomeOut, status_code=201)
