@@ -8,6 +8,7 @@ from models.chat import Conversation, Message
 from services.auth import require_api_key
 from services.embeddings import embed_texts
 from services.schemas import ConversationCreate, ConversationOut
+from services.auto_extract import auto_extract_from_conversation
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -41,6 +42,18 @@ async def create_conversation(payload: ConversationCreate, db: AsyncSession = De
 
     await db.commit()
     await db.refresh(conv)
+
+    # Best-effort auto extraction (insights/knowledge/task outcomes). Never break ingestion.
+    try:
+        await auto_extract_from_conversation(
+            db=db,
+            conversation=conv,
+            messages=[m.model_dump() for m in payload.messages],
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+
     return ConversationOut(
         id=conv.id,
         project=conv.project,

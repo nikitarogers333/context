@@ -18,8 +18,12 @@ async def embed_texts(texts: Sequence[str]) -> list[list[float]]:
 
     The hash fallback keeps local/dev working without external keys.
     """
+    # Lazy-import OpenAI only when configured to avoid hard dependency during local/dev.
     if settings.openai_api_key:
-        from openai import AsyncOpenAI
+        try:
+            from openai import AsyncOpenAI  # type: ignore
+        except Exception as e:
+            raise RuntimeError("OPENAI_API_KEY is set but the 'openai' package is not installed") from e
 
         client = AsyncOpenAI(api_key=settings.openai_api_key)
         resp = await client.embeddings.create(model=settings.embedding_model, input=list(texts))

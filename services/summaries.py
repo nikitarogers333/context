@@ -75,15 +75,52 @@ async def generate_weekly_summary(
     week_end = now
     week_start = now - timedelta(days=days)
 
-    summary_text = f"Summary placeholder for {week_start.date()} → {week_end.date()} (not yet auto-generated)."
+    # Build an actual weekly summary using the LLM (requires OPENAI_API_KEY)
+    from models.chat import Conversation, Message
+    from services.llm import llm_summarize
+
+    stmt = (
+        select(Message.role, Message.content, Message.created_at, Conversation.project)
+        .join(Conversation, Conversation.id == Message.conversation_id)
+        .where(Message.created_at >= week_start)
+        .order_by(Message.created_at.asc())
+        .limit(2000)
+    )
+    rows = (await db.execute(stmt)).all()
+
+    transcript = "\n".join(
+        [f"[{r.created_at.isoformat()}] ({r.project or 'general'}) {r.role}: {r.content}" for r in rows]
+    )
+
+    prompt = (
+        "Create a weekly summary of Atlas activity from the transcript.\n\n"
+        "Return in this format:\n"
+        "- Projects active: comma-separated list\n"
+        "- Key outcomes: 3-8 bullets\n"
+        "- New lessons/mistakes: 0-5 bullets\n"
+        "- Ideas mentioned: comma-separated list\n\n"
+        f"Window: {week_start.date()} -> {week_end.date()}\n\n"
+        f"Transcript:\n{transcript[-120000:]}"
+    )
+
+    summary_text = await llm_summarize(prompt)
+
+    projects_active = None
+    ideas_mentioned = None
+    for line in summary_text.splitlines():
+        if line.lower().startswith("- projects active:"):
+            projects_active = line.split(":", 1)[1].strip() or None
+        if line.lower().startswith("- ideas mentioned:"):
+            ideas_mentioned = line.split(":", 1)[1].strip() or None
+
     embeddings = await embed_texts([summary_text])
 
     ws = WeeklySummary(
         week_start=week_start,
         week_end=week_end,
         summary=summary_text,
-        projects_active=None,
-        ideas_mentioned=None,
+        projects_active=projects_active,
+        ideas_mentioned=ideas_mentioned,
         embedding=embeddings[0],
     )
     db.add(ws)

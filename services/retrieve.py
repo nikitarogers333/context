@@ -12,6 +12,7 @@ from core.database import get_db as get_session
 from models.chat import Conversation, Message, KnowledgeEntry, WeeklySummary
 from models.insight import Insight
 from models.task_outcome import TaskOutcome
+from models.repo_event import RepoEvent
 from services.auth import require_api_key
 from services.embeddings import embed_texts
 
@@ -27,6 +28,8 @@ class RetrieveRequest(BaseModel):
     k_knowledge: int = 3
     k_outcomes: int = 3
     k_summaries: int = 2
+    k_repo_events: int = 3
+    repo: str | None = None
 
 
 class RetrieveResponse(BaseModel):
@@ -35,6 +38,7 @@ class RetrieveResponse(BaseModel):
     knowledge: list[dict]
     task_outcomes: list[dict]
     summaries: list[dict]
+    repo_events: list[dict]
 
 
 @router.post("", response_model=RetrieveResponse)
@@ -114,10 +118,37 @@ async def retrieve(req: RetrieveRequest, db: AsyncSession = Depends(get_session)
         for s in ws_rows
     ]
 
+    # --- Repo Events ---
+    re_stmt = select(RepoEvent).where(RepoEvent.embedding.is_not(None))
+    if req.repo:
+        re_stmt = re_stmt.where(RepoEvent.repo == req.repo)
+    if req.project:
+        if req.include_general:
+            re_stmt = re_stmt.where((RepoEvent.project == req.project) | (RepoEvent.project.is_(None)))
+        else:
+            re_stmt = re_stmt.where(RepoEvent.project == req.project)
+    re_stmt = re_stmt.order_by(RepoEvent.embedding.op("<->")(q_emb)).limit(req.k_repo_events)
+    re_rows = (await db.execute(re_stmt)).scalars().all()
+    repo_events = [
+        {
+            "event_type": e.event_type,
+            "repo": e.repo,
+            "title": e.title,
+            "body": e.body,
+            "ref": e.ref,
+            "author": e.author,
+            "url": e.url,
+            "event_at": str(e.event_at),
+            "project": e.project,
+        }
+        for e in re_rows
+    ]
+
     return RetrieveResponse(
         messages=messages,
         insights=insights,
         knowledge=knowledge,
         task_outcomes=task_outcomes,
         summaries=summaries,
+        repo_events=repo_events,
     )
