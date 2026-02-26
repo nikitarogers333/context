@@ -5,6 +5,10 @@ from fastapi import FastAPI
 
 from services.chat import router as chat_router
 from services.search import router as search_router
+from services.project import router as project_router
+from services.insights import router as insights_router
+from services.repo_events import router as repo_events_router
+from services.task_outcomes import router as task_outcomes_router
 
 logger = logging.getLogger(__name__)
 
@@ -31,3 +35,7 @@ async def health():
 
 app.include_router(chat_router, prefix="/chats")
 app.include_router(search_router, prefix="/search")
+app.include_router(project_router)
+app.include_router(insights_router)
+app.include_router(repo_events_router)
+app.include_router(task_outcomes_router)

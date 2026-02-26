@@ -24,13 +24,18 @@ async def search_messages(payload: SearchRequest, db: AsyncSession = Depends(get
         (1.0 / (1.0 + (Message.embedding.op("<->")(q_emb)))).label("score"),
     ).where(Message.embedding.is_not(None))
 
-    if payload.project:
-        # project lives on conversation; simplest v1 join
-        from models.chat import Conversation
+    # project lives on conversation; simplest v1 join
+    from models.chat import Conversation
 
-        stmt = stmt.join(Conversation, Conversation.id == Message.conversation_id).where(
-            Conversation.project == payload.project
-        )
+    if payload.project is not None:
+        if payload.include_general:
+            stmt = stmt.join(Conversation, Conversation.id == Message.conversation_id).where(
+                (Conversation.project == payload.project) | (Conversation.project.is_(None))
+            )
+        else:
+            stmt = stmt.join(Conversation, Conversation.id == Message.conversation_id).where(
+                Conversation.project == payload.project
+            )
 
     stmt = stmt.order_by(Message.embedding.op("<->")(q_emb)).limit(payload.k)
 
