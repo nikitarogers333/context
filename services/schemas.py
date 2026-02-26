@@ -50,6 +50,64 @@ class SearchResponse(BaseModel):
     hits: list[SearchHit]
 
 
+# --- Knowledge ---
+
+class KnowledgeCreate(BaseModel):
+    category: str = Field(..., pattern="^(preference|pattern|entity|insight)$")
+    subject: str
+    content: str
+    confidence: float = 1.0
+    source_conversation_id: str | None = None
+
+
+class KnowledgeOut(BaseModel):
+    id: uuid.UUID
+    category: str
+    subject: str
+    content: str
+    confidence: float
+    source_conversation_id: uuid.UUID | None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class KnowledgeSearch(BaseModel):
+    query: str | None = None
+    category: str | None = None
+    k: int = 10
+
+
+# --- Weekly Summaries ---
+
+class WeeklySummaryCreate(BaseModel):
+    week_start: datetime
+    week_end: datetime
+    summary: str
+    projects_active: list[str] | None = None
+    ideas_mentioned: list[str] | None = None
+
+
+class WeeklySummaryOut(BaseModel):
+    id: uuid.UUID
+    week_start: datetime
+    week_end: datetime
+    summary: str
+    projects_active: str | None
+    ideas_mentioned: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WeeklySummaryQuery(BaseModel):
+    query: str | None = None
+    k: int = 10
+
+
 # --- Insights ---
 
 class InsightCreate(BaseModel):
@@ -77,7 +135,7 @@ class InsightOut(BaseModel):
 
 
 class InsightSearch(BaseModel):
-    query: str
+    query: str | None = None
     project: str | None = None
     type: str | None = None
     include_global: bool = True

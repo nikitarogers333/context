@@ -9,6 +9,8 @@ from services.project import router as project_router
 from services.insights import router as insights_router
 from services.repo_events import router as repo_events_router
 from services.task_outcomes import router as task_outcomes_router
+from services.knowledge import router as knowledge_router
+from services.summaries import router as weekly_summaries_router
 
 logger = logging.getLogger(__name__)
 
@@ -39,3 +41,5 @@ app.include_router(project_router)
 app.include_router(insights_router)
 app.include_router(repo_events_router)
 app.include_router(task_outcomes_router)
+app.include_router(knowledge_router)
+app.include_router(weekly_summaries_router)

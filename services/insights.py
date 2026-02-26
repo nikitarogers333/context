@@ -1,12 +1,14 @@
-"""Insights router — CRUD + search for lessons, mistakes, retrospectives, playbooks, ideas."""
+"""Insights router — CRUD + vector search for lessons, mistakes, retrospectives, playbooks, ideas."""
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from pgvector.sqlalchemy import Vector
 
-from core.database import get_session
+from core.database import get_db as get_session
 from models.insight import Insight
 from services.auth import require_api_key
+from services.embeddings import embed_texts
 from services.schemas import InsightCreate, InsightOut, InsightSearch
 
 router = APIRouter(prefix="/insights", tags=["insights"], dependencies=[Depends(require_api_key)])
@@ -15,6 +17,11 @@ router = APIRouter(prefix="/insights", tags=["insights"], dependencies=[Depends(
 @router.post("", response_model=InsightOut, status_code=201)
 async def create_insight(req: InsightCreate, db: AsyncSession = Depends(get_session)):
     tags_list = [t.strip() for t in req.tags.split(",")] if req.tags else []
+
+    # Generate embedding from title + content
+    embed_text = f"{req.title}\n{req.content}"
+    embeddings = await embed_texts([embed_text])
+
     insight = Insight(
         type=req.type,
         title=req.title,
@@ -23,6 +30,7 @@ async def create_insight(req: InsightCreate, db: AsyncSession = Depends(get_sess
         tags=tags_list,
         source_conversation_id=req.source_conversation_id,
         source_task_id=req.source_task_id,
+        embedding=embeddings[0],
     )
     db.add(insight)
     await db.commit()
@@ -58,24 +66,33 @@ async def get_insight(insight_id: str, db: AsyncSession = Depends(get_session)):
 
 @router.post("/search", response_model=list[InsightOut])
 async def search_insights(req: InsightSearch, db: AsyncSession = Depends(get_session)):
-    """Search insights by text match on title/content, filtered by project/type."""
-    stmt = select(Insight).order_by(Insight.created_at.desc()).limit(req.k)
-
-    if req.project and req.include_global:
-        stmt = stmt.where((Insight.project == req.project) | (Insight.project.is_(None)))
-    elif req.project:
-        stmt = stmt.where(Insight.project == req.project)
-    # else: no project filter = search all
-
-    if req.type:
-        stmt = stmt.where(Insight.type == req.type)
-
-    # Text search: simple ILIKE on title + content
+    """Search insights — uses vector similarity when query is provided, falls back to listing."""
     if req.query:
-        pattern = f"%{req.query}%"
-        stmt = stmt.where(
-            Insight.title.ilike(pattern) | Insight.content.ilike(pattern)
-        )
+        # Vector similarity search
+        q_emb = (await embed_texts([req.query]))[0]
+
+        stmt = select(Insight).where(Insight.embedding.is_not(None))
+
+        if req.project and req.include_global:
+            stmt = stmt.where((Insight.project == req.project) | (Insight.project.is_(None)))
+        elif req.project:
+            stmt = stmt.where(Insight.project == req.project)
+
+        if req.type:
+            stmt = stmt.where(Insight.type == req.type)
+
+        stmt = stmt.order_by(Insight.embedding.op("<->")(q_emb)).limit(req.k)
+    else:
+        # No query — just list with filters
+        stmt = select(Insight).order_by(Insight.created_at.desc()).limit(req.k)
+
+        if req.project and req.include_global:
+            stmt = stmt.where((Insight.project == req.project) | (Insight.project.is_(None)))
+        elif req.project:
+            stmt = stmt.where(Insight.project == req.project)
+
+        if req.type:
+            stmt = stmt.where(Insight.type == req.type)
 
     result = await db.execute(stmt)
     return result.scalars().all()
