@@ -1,13 +1,22 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Database — Railway provides DATABASE_URL (postgres://...)
-    # We also accept database_url for local dev
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/context"
-    database_public_url: str | None = None  # Railway sets this too
+    # Database
+    # - Railway provides DATABASE_URL (usually postgres://...)
+    # - Local dev can use DATABASE_URL or database_url
+    #
+    # IMPORTANT: pydantic-settings maps env vars by field name. Our field is
+    # `database_url`, so by default it reads `DATABASE_URL` only if we add an alias.
+    # Without this alias, Railway deployments won't see the injected DATABASE_URL.
+    database_url: str = Field(
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/context",
+        validation_alias="DATABASE_URL",
+    )
+    database_public_url: str | None = None  # Railway may set this too
 
     # Embeddings
     openai_api_key: str | None = None
